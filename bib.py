@@ -1,8 +1,29 @@
+"""
+Copyright (C) 2011 by Panagiotis Tigkas <ptigas@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
+
 import fileinput
 import sys
 import re
 
-#token_re = re.compile("\s*([\w|\d|'|.]+|@|\"|{|}|=)")
 token_re = re.compile(r"\s*([^\s\"#%'(){}@,=]+|@|\"|{|}|=|,)")
 
 def clear_comments(data):
@@ -22,128 +43,159 @@ for line in fileinput.input():
 	data += line + "\n"
 
 data = clear_comments(data)
-next_token = tokenize(data).next
-
-t = None
 
 def ERROR( s ) :
 	print "ERROR: %s" % s
 	sys.exit(-1)
 
-def key() :
-	global t
-	print "KEY: %s"%t
-	t = next_token()
+class Bibparser() :
+	def __init__(self, data) :
+		self.data = data	
+		self.token = None
+		self._next_token = self.tokenize().next
+		self.db = {}
+		self.mode = None
+		self.records = {}
 
-def record() :
-	global t	
-	if t not in ['comment','string','preample'] :
-		print "RECORD NAME: %s" % t
-		t = next_token()
-		if t == '{' :
-			t = next_token()
-			key()
-			if t == ',' :				
-				while True:
-					t = next_token()
-					field()					
-					if t <> ',' :						
-						break				
-				if t == '}' :
+	def parse(self) :
+		while True :
+			try :
+				self.next_token()				
+				while self.database() :
+					pass			
+			except StopIteration :
+				break
+
+	def next_token(self):
+		self.token = self._next_token()		
+	
+	def tokenize(self) :
+		for item in token_re.finditer(self.data):
+			i = item.group(0)
+			# eat new line chars
+			yield re.sub(r"[\n|\s]*",'',i)
+
+	def database(self) :
+		if self.token == '@' :
+			self.next_token()
+			self.entry()
+	
+	def entry(self) :		
+		if self.token == 'string' :
+			self.mode = 'string'
+			self.string()
+			self.mode = None
+		else :
+			self.mode = 'record'
+			self.record()
+			self.mode = None
+
+	def string(self) :		
+		if self.token == "string" :
+			self.next_token()
+			if self.token == "{" :
+				self.next_token()
+				self.field()
+				if self.token == "}" :
 					pass
 				else :
-					if t == '@' : # assume closed
+					ERROR("5")
+	
+	def field(self) :
+		name = self.name()
+		if self.token == '=' :
+			self.next_token()
+			value = self.value()
+			if self.mode == 'string' :
+				self.db[name] = value
+			return (name, value)			
+	
+	def value(self) :
+		value = ""
+		if self.token == '"' :		
+			val = []
+			while True:
+				self.next_token()
+				if self.token == '"' :
+					break
+				else :
+					val.append(self.token)
+			value = ' '.join(val)
+			if self.token == '"' :			
+				self.next_token()
+			else :
+				ERROR("2")
+		elif self.token == '{' :
+			val = []
+			c = 0
+			while True:
+				self.next_token()
+				if self.token == '{' :
+					c +=1
+				if self.token == '}' :				
+					c -= 1
+				if c < 0 :
+					break
+				else :
+					val.append(self.token)
+			value = ' '.join(val)
+			if self.token == '}' :
+				self.next_token()
+			else :
+				ERROR("3")
+		elif self.token.isdigit() :
+			value = self.token
+			self.next_token()
+		else :
+			if self.token in self.db :
+				value = self.db[ self.token ]
+			else :
+				value = self.token			
+			self.next_token()
+
+		return value
+	
+	def name(self) :
+		name = self.token		
+		self.next_token()
+		return name
+
+	def key(self) :
+		#print "KEY: %s"% self.token
+		key = self.token
+		self.next_token()
+		return key
+
+	def record(self) :	
+		if self.token not in ['comment','string','preample'] :
+			#print "RECORD NAME: %s" % self.token
+			self.next_token()
+			if self.token == '{' :
+				self.next_token()
+				key = self.key()
+				self.records[ key ] = []
+				if self.token == ',' :				
+					while True:
+						self.next_token()
+						field = self.field()
+						self.records[ key ].append(field)
+						if self.token <> ',' :						
+							break				
+					if self.token == '}' :
 						pass
 					else :
-						print t
-						ERROR("1")
+						if self.token == '@' : # assume closed
+							pass
+						else :
+							print self.token
+							ERROR("1")
+	#parse()
 
-def name() :
-	global t
-	#print t
-	print "NAME: %s" % t
-	t = next_token()
+parser = Bibparser(data)
+parser.parse()
 
-
-def value() :
-	global t
-	if t == '"' :		
-		val = []
-		while True:
-			t = next_token()
-			if t == '"' :
-				break
-			else :
-				val.append(t)
-		print "VAL: %s"%' '.join(val)
-		if t == '"' :			
-			t = next_token()
-		else :
-			ERROR("2")
-	elif t == '{' :
-		val = []
-		c = 0
-		while True:
-			t = next_token()
-			if t == '{' :
-				c +=1
-			if t == '}' :				
-				c -= 1
-			if c < 0 :
-				break
-			else :
-				val.append(t)
-		print "VAL: %s"%' '.join(val)
-		if t == '}' :
-			t = next_token()
-		else :
-			ERROR("3")
-	elif t.isdigit() :
-		t = next_token()
-	else :
-		t = next_token()
-
-def field() :
-	global t
-	name()	
-	if t == '=' :
-		t = next_token()		
-		value()		
-
-def string() :
-	global t
-	if t == "string" :
-		t = next_token()
-		if t == "{" :
-			t = next_token()
-			field()
-			if t == "}" :
-				pass
-			else :
-				ERROR("5")
-
-def entry() :
-	global t	
-	if t == 'string' :
-		string()
-	else :
-		record()
-
-def database() :
-	global t
-	if t == '@' :
-		t = next_token()
-		entry()
-
-def parse():
-	global t
-	while True :
-		try :
-			t = next_token()
-			while database() :
-				pass			
-		except StopIteration :
-			break
-	#print next_token()
-
-parse()
+for key in parser.records :
+	print key	
+	for attr in parser.records[key] :
+		if attr :
+			print "\t %s : %s" % attr
