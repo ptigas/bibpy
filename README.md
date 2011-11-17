@@ -35,3 +35,7 @@ A rough grammar (case-insensitive):
        |   '"' ([^'"']|\\'"')* '"'
        |   '{' .* '}'          -- (balanced)
 ```
+
+TODO
+---
+This libraries is part of a citation sharing service, stay tunned.
