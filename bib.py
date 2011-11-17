@@ -23,6 +23,7 @@ THE SOFTWARE.
 import fileinput
 import sys
 import re
+import json
 
 token_re = re.compile(r"\s*([^\s\"#%'(){}@,=]+|@|\"|{|}|=|,)")
 
@@ -31,37 +32,48 @@ def clear_comments(data):
 	res = re.sub(r"(comment [^\n]*\n)",'',res)
 	return res
 
-
 def tokenize(data):
     for item in token_re.finditer(data):
         i = item.group(0)
         yield re.sub(r"[\n|\s]*",'',i) # eat new line chars
 
-def ERROR( s ) :
-	print "ERROR: %s" % s
+def ERROR(s) :
+	print "ERROR: %s" % s 
 	sys.exit(-1)
 
 class Bibparser() :
 	tokens = [
-		( r"\d+", 				 "INTEGER"), 
-		( r"@", 				 "@"),
-		( r"{", 				 "{"),
-		( r"}", 				 "}"),
-		( r"[^\s\"#%'(){}@,=]+", "WORD"),
-		( r"\s+", 				 "WHITE"),
+		[ r"\d+", 				 "INTEGER"], 
+		[ r"@", 				 "@"],
+		[ r"{", 				 "{"],
+		[ r"}", 				 "}"],
+		[ r'"', 				 '"'],		
+		[ r"=", 				 "="],
+		[ r",", 				 ","],
+		[ r"[^\s\"#%'(){}@,=]+", "WORD"],
+		[ r"\s+", 				 "WHITE"],
 	]
 
 	def tokenize2(self):
 		for item in self.token_re.finditer(self.data):
 			i = item.group(0)
+			
 			for tok in self.tokens :
-				if re.match(tok[0], i) :
+				if tok[0].match(i) :
 					self.token_type = tok[1] 
 					break
+			# eat new line chars
 			if self.token_type == 'WHITE' :
 				continue
-			print i
-			yield re.sub(r"[\n|\s]*",'',i) # eat new line chars
+			
+			#self.token = i		
+			yield i
+
+	def tokenize(self) :
+		for item in token_re.finditer(self.data):
+			i = item.group(0)			
+			# eat new line chars
+			yield re.sub(r"[\n|\s]*",'',i)
 
 	def __init__(self, data) :
 		self.data = data	
@@ -72,8 +84,9 @@ class Bibparser() :
 		self.mode = None
 		self.records = {}
 		self.token_re = re.compile(r"(%s)"%'|'.join(map( lambda x:x[0], self.tokens )))
-		
-		#sys.exit()
+		for i in range(len(self.tokens)) :
+			self.tokens[i][0] = re.compile(self.tokens[i][0])
+
 
 	def parse(self) :
 		while True :
@@ -87,12 +100,6 @@ class Bibparser() :
 	def next_token(self):
 		self.token = self._next_token()		
 	
-	def tokenize(self) :
-		for item in token_re.finditer(self.data):
-			i = item.group(0)			
-			# eat new line chars
-			yield re.sub(r"[\n|\s]*",'',i)
-
 	def database(self) :
 		if self.token == '@' :
 			self.next_token()
@@ -116,14 +123,14 @@ class Bibparser() :
 				self.field()
 				if self.token == "}" :
 					pass
-				else :					
+				else :						
 					ERROR("5")
 	
 	def field(self) :
 		name = self.name()
 		if self.token == '=' :
 			self.next_token()
-			value = self.value()
+			value = self.value()			
 			if self.mode == 'string' :
 				self.db[name] = value
 			return (name, value)			
@@ -178,15 +185,13 @@ class Bibparser() :
 		self.next_token()
 		return name
 
-	def key(self) :
-		#print "KEY: %s"% self.token
+	def key(self) :		
 		key = self.token
 		self.next_token()
 		return key
 
 	def record(self) :	
-		if self.token not in ['comment','string','preample'] :
-			#print "RECORD NAME: %s" % self.token
+		if self.token not in ['comment','string','preample'] :			
 			self.next_token()
 			if self.token == '{' :
 				self.next_token()
@@ -205,11 +210,15 @@ class Bibparser() :
 					if self.token == '}' :
 						pass
 					else :
-						if self.token == '@' : # assume closed
+						# assume entity ended
+						if self.token == '@' :
 							pass
 						else :
 							print self.token
-							ERROR("1")	
+							ERROR("1")
+	
+	def json(self) :
+		return json.dumps(self.records)
 
 def main() :
 	data = ""
@@ -220,9 +229,11 @@ def main() :
 
 	data = clear_comments(data)
 	
-	parser = Bibparser(data)
-	parser.parse()
+	bib = Bibparser(data)
+	bib.parse()
 
+	print bib.json()
+	sys.exit(-1)
 	for key in parser.records :
 		print key	
 		for attr in parser.records[key] :		
