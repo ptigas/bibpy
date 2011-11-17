@@ -13,6 +13,7 @@ What language does it parse ?
 ---
 The BNF it parse is based on http://tex.stackexchange.com/questions/16490/the-gold-standard-in-bibtex-databases/16492#16492
 
+```
 A rough grammar (case-insensitive):
 
  Database  ::= (Junk '@' Entry)*
@@ -33,3 +34,4 @@ A rough grammar (case-insensitive):
  Value ::= [0-9]+
        |   '"' ([^'"']|\\'"')* '"'
        |   '{' .* '}'          -- (balanced)
+```
