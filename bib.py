@@ -31,6 +31,7 @@ def clear_comments(data):
 	res = re.sub(r"(comment [^\n]*\n)",'',res)
 	return res
 
+
 def tokenize(data):
     for item in token_re.finditer(data):
         i = item.group(0)
@@ -41,13 +42,38 @@ def ERROR( s ) :
 	sys.exit(-1)
 
 class Bibparser() :
+	tokens = [
+		( r"\d+", 				 "INTEGER"), 
+		( r"@", 				 "@"),
+		( r"{", 				 "{"),
+		( r"}", 				 "}"),
+		( r"[^\s\"#%'(){}@,=]+", "WORD"),
+		( r"\s+", 				 "WHITE"),
+	]
+
+	def tokenize2(self):
+		for item in self.token_re.finditer(self.data):
+			i = item.group(0)
+			for tok in self.tokens :
+				if re.match(tok[0], i) :
+					self.token_type = tok[1] 
+					break
+			if self.token_type == 'WHITE' :
+				continue
+			print i
+			yield re.sub(r"[\n|\s]*",'',i) # eat new line chars
+
 	def __init__(self, data) :
 		self.data = data	
 		self.token = None
+		self.token_type = None
 		self._next_token = self.tokenize().next
 		self.db = {}
 		self.mode = None
 		self.records = {}
+		self.token_re = re.compile(r"(%s)"%'|'.join(map( lambda x:x[0], self.tokens )))
+		
+		#sys.exit()
 
 	def parse(self) :
 		while True :
@@ -63,7 +89,7 @@ class Bibparser() :
 	
 	def tokenize(self) :
 		for item in token_re.finditer(self.data):
-			i = item.group(0)
+			i = item.group(0)			
 			# eat new line chars
 			yield re.sub(r"[\n|\s]*",'',i)
 
@@ -90,7 +116,7 @@ class Bibparser() :
 				self.field()
 				if self.token == "}" :
 					pass
-				else :
+				else :					
 					ERROR("5")
 	
 	def field(self) :
@@ -183,9 +209,7 @@ class Bibparser() :
 							pass
 						else :
 							print self.token
-							ERROR("1")
-		
-	#parse()
+							ERROR("1")	
 
 def main() :
 	data = ""

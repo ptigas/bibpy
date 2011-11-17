@@ -7,7 +7,7 @@ Bibpy is a (yet another) BibTex file parser in python.
 
 What's the difference with other parsers ? 
 ---
-It doesn't depend on libraries like pyparser etc. It's small and fast ( O(n) ).
+It doesn't depend on libraries like pyparser etc. It's small and fast ( O(n) ). Also, it tries to recover from common errors with minimum cost.
 
 What language does it parse ?
 ---
