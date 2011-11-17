@@ -36,14 +36,6 @@ def tokenize(data):
         i = item.group(0)
         yield re.sub(r"[\n|\s]*",'',i) # eat new line chars
 
-data = ""
-for line in fileinput.input():
-	line = line.rstrip()
-	#print line
-	data += line + "\n"
-
-data = clear_comments(data)
-
 def ERROR( s ) :
 	print "ERROR: %s" % s
 	sys.exit(-1)
@@ -173,12 +165,15 @@ class Bibparser() :
 			if self.token == '{' :
 				self.next_token()
 				key = self.key()
-				self.records[ key ] = []
+				self.records[ key ] = {}
 				if self.token == ',' :				
 					while True:
 						self.next_token()
 						field = self.field()
-						self.records[ key ].append(field)
+						if field :
+							k = field[0]
+							v = field[1]
+							self.records[ key ][k] = v
 						if self.token <> ',' :						
 							break				
 					if self.token == '}' :
@@ -189,13 +184,26 @@ class Bibparser() :
 						else :
 							print self.token
 							ERROR("1")
+		
 	#parse()
 
-parser = Bibparser(data)
-parser.parse()
+def main() :
+	data = ""
+	for line in fileinput.input():
+		line = line.rstrip()
+		#print line
+		data += line + "\n"
 
-for key in parser.records :
-	print key	
-	for attr in parser.records[key] :
-		if attr :
-			print "\t %s : %s" % attr
+	data = clear_comments(data)
+	
+	parser = Bibparser(data)
+	parser.parse()
+
+	for key in parser.records :
+		print key	
+		for attr in parser.records[key] :		
+			if attr :
+				print "\t %s : %s" % (attr, parser.records[key][attr])
+
+if __name__ == "__main__" :
+	main()
