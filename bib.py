@@ -25,8 +25,6 @@ import sys
 import re
 import json
 
-token_re = re.compile(r"\s*([^\s\"#%'(){}@,=]+|@|\"|{|}|=|,)")
-
 def clear_comments(data):
 	res = re.sub(r"(%.*\n)",'',data)
 	res = re.sub(r"(comment [^\n]*\n)",'',res)
@@ -42,38 +40,12 @@ def ERROR(s) :
 	sys.exit(-1)
 
 class Bibparser() :
-	tokens = [
-		[ r"\d+", 				 "INTEGER"], 
-		[ r"@", 				 "@"],
-		[ r"{", 				 "{"],
-		[ r"}", 				 "}"],
-		[ r'"', 				 '"'],		
-		[ r"=", 				 "="],
-		[ r",", 				 ","],
-		[ r"[^\s\"#%'(){}@,=]+", "WORD"],
-		[ r"\s+", 				 "WHITE"],
-	]
-
-	def tokenize2(self):
-		for item in self.token_re.finditer(self.data):
-			i = item.group(0)
-			
-			for tok in self.tokens :
-				if tok[0].match(i) :
-					self.token_type = tok[1] 
-					break
-			# eat new line chars
-			if self.token_type == 'WHITE' :
-				continue
-			
-			#self.token = i		
-			yield i
-
 	def tokenize(self) :
+		white = re.compile(r"[\n|\s]+")
+		token_re = re.compile(r"([^\s\n\"#%'(){}@,=]+|@|\"|{|}|=|,)")
 		for item in token_re.finditer(self.data):
 			i = item.group(0)			
-			# eat new line chars
-			yield re.sub(r"[\n|\s]*",'',i)
+			yield white.sub('',i)			
 
 	def __init__(self, data) :
 		self.data = data	
@@ -83,10 +55,7 @@ class Bibparser() :
 		self.db = {}
 		self.mode = None
 		self.records = {}
-		self.token_re = re.compile(r"(%s)"%'|'.join(map( lambda x:x[0], self.tokens )))
-		for i in range(len(self.tokens)) :
-			self.tokens[i][0] = re.compile(self.tokens[i][0])
-
+		self.line = 1
 
 	def parse(self) :
 		while True :
@@ -124,7 +93,7 @@ class Bibparser() :
 				if self.token == "}" :
 					pass
 				else :						
-					ERROR("5")
+					raise NameError("} missing")
 	
 	def field(self) :
 		name = self.name()
@@ -149,7 +118,7 @@ class Bibparser() :
 			if self.token == '"' :			
 				self.next_token()
 			else :
-				ERROR("2")
+				raise NameError("\" missing")
 		elif self.token == '{' :
 			val = []
 			c = 0
@@ -167,7 +136,7 @@ class Bibparser() :
 			if self.token == '}' :
 				self.next_token()
 			else :
-				ERROR("3")
+				raise NameError("} missing")
 		elif self.token.isdigit() :
 			value = self.token
 			self.next_token()
@@ -215,7 +184,7 @@ class Bibparser() :
 							pass
 						else :
 							print self.token
-							ERROR("1")
+							raise NameError("@ missing")
 	
 	def json(self) :
 		return json.dumps(self.records)
