@@ -30,11 +30,8 @@ def clear_comments(data):
     res = re.sub(r"(comment [^\n]*\n)", '', res)
     return res
 
-
 last_called_function = None
-def log( f ):
-    global last_called_function
-    last_called_function = f.__name__    
+def log( f ):    
     return f
 
 class Bibparser() :
@@ -78,7 +75,7 @@ class Bibparser() :
     def next_token(self):
         """Returns next token"""        
         self.token = self._next_token()
-        print self.line, self.token
+        #print self.line, self.token
     
     @log
     def database(self) :
@@ -90,7 +87,7 @@ class Bibparser() :
     @log
     def entry(self) :  
         """Entry"""     
-        if self.token == 'string' :
+        if self.token.lower() == 'string' :
             self.mode = 'string'
             self.string()
             self.mode = None
@@ -102,7 +99,7 @@ class Bibparser() :
     @log
     def string(self) :   
         """String"""   
-        if self.token == "string" :
+        if self.token.lower() == "string" :
             self.next_token()
             if self.token == "{" :
                 self.next_token()
@@ -119,7 +116,7 @@ class Bibparser() :
         if self.token == '=' :
             self.next_token()
             value = self.value()            
-            if self.mode == 'string' :
+            if self.mode == 'string' :                
                 self.hashtable[name] = value
             return (name, value)            
     
@@ -157,14 +154,18 @@ class Bibparser() :
                     self.next_token()
                 else :
                     raise NameError("} missing")
-            elif self.token != "=" and re.match(r"\w|#|,", self.token) :            
-                val.append(self.token)
+            elif self.token != "=" and re.match(r"\w|#|,", self.token) :
+                value = self.query_hashtable(self.token)
+                val.append(value)
                 while True:
                     self.next_token()                    
+                    # if token is in hashtable then replace                    
+                    value = self.query_hashtable(self.token)
                     if re.match(r"[^\w#]|,|}|{", self.token) : #self.token == '' :
                         break
                     else :
-                        val.append(self.token)                            
+                        val.append(value) 
+
             elif self.token.isdigit() :
                 value = self.token
                 self.next_token()
@@ -175,12 +176,17 @@ class Bibparser() :
                     value = self.token          
                 self.next_token()
 
-                if re.match(r"}|,",self.token ) :
-                    break            
+            if re.match(r"}|,",self.token ) :
+                break            
 
-        value = ' '.join(val)
-        print value
+        value = ' '.join(val)        
         return value
+
+    def query_hashtable( self, s ) :
+        if s in self.hashtable :
+            return self.hashtable[ self.token ]
+        else :
+            return s
     
     @log
     def name(self) :
@@ -230,6 +236,8 @@ class Bibparser() :
 
 def main() :
     """Main function"""
+
+    # TODO: Probably a solution with iterations will be better
     data = ""
     for line in fileinput.input():
         line = line.rstrip()        
