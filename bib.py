@@ -34,8 +34,7 @@ def clear_comments(data):
 last_called_function = None
 def log( f ):
     global last_called_function
-    last_called_function = f.__name__
-    print f.__name__
+    last_called_function = f.__name__    
     return f
 
 class Bibparser() :
@@ -44,11 +43,13 @@ class Bibparser() :
     def tokenize(self) :
         """Returns a token iterator"""
         white = re.compile(r"[\n|\s]+")
-        token_re = re.compile(r"([^\"#%'(){}@,=]+|@|\"|{|}|=|,)")
+        nl = re.compile(r"[\n]")
+        token_re = re.compile(r"([^\s\"#%'(){}@,=]+|\n|@|\"|{|}|=|,)")
         for item in token_re.finditer(self.data):
             i = item.group(0)
             if white.match(i) :
-                self.line += 1
+                if nl.match(i) :
+                    self.line += 1
                 continue
             else :
                 yield i            
@@ -61,7 +62,7 @@ class Bibparser() :
         self.hashtable = {}
         self.mode = None
         self.records = {}        
-        self.line = 0
+        self.line = 1
         self.last_called_function = None    
     
     def parse(self) :
@@ -75,16 +76,15 @@ class Bibparser() :
                 break
     
     def next_token(self):
-        """Returns next token"""
-        global last_called_function
+        """Returns next token"""        
         self.token = self._next_token()
-        print self.line, last_called_function, self.token
+        print self.line, self.token
     
     @log
     def database(self) :
         """Database"""
-        if self.token == '@' :
-            self.next_token()
+        if self.token == '@' :            
+            self.next_token()            
             self.entry()
     
     @log
@@ -127,47 +127,58 @@ class Bibparser() :
     def value(self) :
         """Value"""
         value = ""
-        if self.token == '"' :      
-            val = []
-            while True:
-                self.next_token()
-                if self.token == '"' :
-                    break
-                else :
-                    val.append(self.token)
-            value = ' '.join(val)
-            if self.token == '"' :          
-                self.next_token()
-            else :
-                raise NameError("\" missing")
-        elif self.token == '{' :
-            val = []
-            brac_counter = 0
-            while True:
-                self.next_token()
-                if self.token == '{' :
-                    brac_counter += 1
-                if self.token == '}' :              
-                    brac_counter -= 1
-                if brac_counter < 0 :
-                    break
-                else :
-                    val.append(self.token)
-            value = ' '.join(val)
-            if self.token == '}' :
-                self.next_token()
-            else :
-                raise NameError("} missing")
-        elif self.token.isdigit() :
-            value = self.token
-            self.next_token()
-        else :
-            if self.token in self.hashtable :
-                value = self.hashtable[ self.token ]
-            else :
-                value = self.token          
-            self.next_token()
+        val = []
 
+        while True :
+            if self.token == '"' :              
+                while True:
+                    self.next_token()
+                    if self.token == '"' :
+                        break
+                    else :
+                        val.append(self.token)            
+                if self.token == '"' :          
+                    self.next_token()
+                else :
+                    raise NameError("\" missing")
+            elif self.token == '{' :            
+                brac_counter = 0
+                while True:
+                    self.next_token()
+                    if self.token == '{' :
+                        brac_counter += 1
+                    if self.token == '}' :              
+                        brac_counter -= 1
+                    if brac_counter < 0 :
+                        break
+                    else :
+                        val.append(self.token)            
+                if self.token == '}' :
+                    self.next_token()
+                else :
+                    raise NameError("} missing")
+            elif self.token != "=" and re.match(r"\w|#|,", self.token) :            
+                val.append(self.token)
+                while True:
+                    self.next_token()                    
+                    if re.match(r"[^\w#]|,|}|{", self.token) : #self.token == '' :
+                        break
+                    else :
+                        val.append(self.token)                            
+            elif self.token.isdigit() :
+                value = self.token
+                self.next_token()
+            else :
+                if self.token in self.hashtable :
+                    value = self.hashtable[ self.token ]
+                else :
+                    value = self.token          
+                self.next_token()
+
+                if re.match(r"}|,",self.token ) :
+                    break            
+
+        value = ' '.join(val)
         return value
     
     @log
@@ -209,8 +220,7 @@ class Bibparser() :
                         # assume entity ended
                         if self.token == '@' :
                             pass
-                        else :
-                            print self.token
+                        else :                            
                             raise NameError("@ missing")
     
     def json(self) :
@@ -221,15 +231,14 @@ def main() :
     """Main function"""
     data = ""
     for line in fileinput.input():
-        line = line.rstrip()
-        #print line
+        line = line.rstrip()        
         data += line + "\n"
 
     data = clear_comments(data)
     
     bib = Bibparser(data)
     bib.parse()
-    #print bib.json()
+    print bib.json()
     
 if __name__ == "__main__" :
     main()
