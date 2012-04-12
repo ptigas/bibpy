@@ -179,6 +179,7 @@ class Bibparser() :
                     break            
 
         value = ' '.join(val)
+        print value
         return value
     
     @log
