@@ -30,16 +30,28 @@ def clear_comments(data):
     res = re.sub(r"(comment [^\n]*\n)", '', res)
     return res
 
+
+last_called_function = None
+def log( f ):
+    global last_called_function
+    last_called_function = f.__name__
+    print f.__name__
+    return f
+
 class Bibparser() :
     """Main class for Bibtex parsing"""
 
     def tokenize(self) :
         """Returns a token iterator"""
         white = re.compile(r"[\n|\s]+")
-        token_re = re.compile(r"([^\s\n\"#%'(){}@,=]+|@|\"|{|}|=|,)")
+        token_re = re.compile(r"([^\"#%'(){}@,=]+|@|\"|{|}|=|,)")
         for item in token_re.finditer(self.data):
-            i = item.group(0)           
-            yield white.sub('', i)           
+            i = item.group(0)
+            if white.match(i) :
+                self.line += 1
+                continue
+            else :
+                yield i            
 
     def __init__(self, data) :
         self.data = data    
@@ -49,7 +61,9 @@ class Bibparser() :
         self.hashtable = {}
         self.mode = None
         self.records = {}        
-
+        self.line = 0
+        self.last_called_function = None    
+    
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
         while True :
@@ -59,17 +73,21 @@ class Bibparser() :
                     pass            
             except StopIteration :
                 break
-
+    
     def next_token(self):
         """Returns next token"""
-        self.token = self._next_token()     
+        global last_called_function
+        self.token = self._next_token()
+        print self.line, last_called_function, self.token
     
+    @log
     def database(self) :
         """Database"""
         if self.token == '@' :
             self.next_token()
             self.entry()
     
+    @log
     def entry(self) :  
         """Entry"""     
         if self.token == 'string' :
@@ -77,10 +95,11 @@ class Bibparser() :
             self.string()
             self.mode = None
         else :
-            self.mode = 'record'
+            self.mode = 'record'            
             self.record()
             self.mode = None
 
+    @log
     def string(self) :   
         """String"""   
         if self.token == "string" :
@@ -93,6 +112,7 @@ class Bibparser() :
                 else :                      
                     raise NameError("} missing")
     
+    @log
     def field(self) :
         """Field"""
         name = self.name()
@@ -103,6 +123,7 @@ class Bibparser() :
                 self.hashtable[name] = value
             return (name, value)            
     
+    @log
     def value(self) :
         """Value"""
         value = ""
@@ -149,18 +170,21 @@ class Bibparser() :
 
         return value
     
+    @log
     def name(self) :
         """Returns parsed Name"""
         name = self.token       
         self.next_token()
         return name
 
+    @log
     def key(self) : 
         """Returns parsed Key"""    
         key = self.token
         self.next_token()
         return key
 
+    @log
     def record(self) : 
         """Record""" 
         if self.token not in ['comment', 'string', 'preample'] :          
@@ -205,7 +229,7 @@ def main() :
     
     bib = Bibparser(data)
     bib.parse()
-    print bib.json()
+    #print bib.json()
     
 if __name__ == "__main__" :
     main()
