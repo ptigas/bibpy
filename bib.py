@@ -38,14 +38,11 @@ class Bibparser() :
     """Main class for Bibtex parsing"""
 
     def tokenize(self) :
-        """Returns a token iterator"""
-        white = re.compile(r"[\n|\s]+")
-        nl = re.compile(r"[\n]")
-        token_re = re.compile(r"([^\s\"#%'(){}@,=]+|\n|@|\"|{|}|=|,)")
-        for item in token_re.finditer(self.data):
+        """Returns a token iterator"""        
+        for item in self.token_re.finditer(self.data):
             i = item.group(0)
-            if white.match(i) :
-                if nl.match(i) :
+            if self.white.match(i) :
+                if self.nl.match(i) :
                     self.line += 1
                 continue
             else :
@@ -60,7 +57,12 @@ class Bibparser() :
         self.mode = None
         self.records = {}        
         self.line = 1
-        self.last_called_function = None    
+        self.last_called_function = None
+
+        # compile some regexes
+        self.white = re.compile(r"[\n|\s]+")
+        self.nl = re.compile(r"[\n]")
+        self.token_re = re.compile(r"([^\s\"#%'(){}@,=]+|\n|@|\"|{|}|=|,)")
     
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
@@ -243,7 +245,7 @@ def main() :
         line = line.rstrip()        
         data += line + "\n"
 
-    data = clear_comments(data)
+    #data = clear_comments(data)
     
     bib = Bibparser(data)
     bib.parse()
