@@ -245,11 +245,13 @@ def main() :
         line = line.rstrip()        
         data += line + "\n"
 
-    #data = clear_comments(data)
-    
+    print 'loaded...'
+    data = clear_comments(data)
+    print 'cleared...'
     bib = Bibparser(data)
     bib.parse()
     print bib.json()
+    print 'done...'    
     
 if __name__ == "__main__" :
     main()
