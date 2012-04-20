@@ -23,6 +23,7 @@ THE SOFTWARE.
 import fileinput
 import re
 import json
+import sys
 
 def clear_comments(data):
     """Return the bibtex content without comments"""
@@ -92,6 +93,10 @@ class Function :
             'newline$' : {
                 'arguments' : 0,
                 'function'  : 'newline'
+            },
+            'preamble$' : {
+                'arguments' : 0,
+                'function'  : 'preample'
             }
         }
 
@@ -109,7 +114,11 @@ class Function :
 
         return None
 
+    def preample( self ) :
+        self.push('FU')
+
     def write( self, a ) :
+        print "writing", a
         global BUFFER
         BUFFER += str(a)
 
@@ -133,21 +142,34 @@ class Function :
     def execute( self ):
         global STACK
         print "EXECUTING", self.name
-        for command in self.commands :
-            res = self.is_op( command )
+        print self.commands
+        for command in self.commands :            
+            try :
+                res = self.is_op( command )
+            except :
+                res = None
             if res <> None :
                 
                 # gather all arguments
                 # and call function
                 args = []
+                # print "STACK", STACK
                 for i in range(res['arguments']) :
                     args.append(self.pop())
                 f = getattr(self, res['function'])
                 if f :
+                    # print "AAA", res['function']
                     f(*args)                    
 
+            elif type(command) == list :
+                pass
+                #print '...', command
+                #Function( 'anon', command ).execute()
+
             elif re.match(r".*\$$", command):
-                print "TRALALA ", command
+                pass
+                #print "TRALALA ", command
+            
             else :
                 STACK.append(command)
         print "FINISHED EXECUTING %s" % self.name
@@ -184,9 +206,8 @@ class Function :
         b = 0
         self.push( int(a)+int(b) )
 
-    def pop( self ):
-        print self.name     
-        global STACK        
+    def pop( self ):        
+        global STACK                
         return STACK.pop()
 
     def push( self, item ):
@@ -207,8 +228,8 @@ class Bstparser :
             else :
                 yield i            
 
-    def __init__(self, data) :
-        self.data = data
+    def __init__(self, bst_data, bib_data) :
+        self.data = bst_data
         self.token = None
         self.token_type = None
         self._next_token = self.tokenize().next
@@ -217,6 +238,7 @@ class Bstparser :
         self.records = {}        
         self.line = 1
         self.last_called_function = None
+        self.bib_data = bib_data
 
         # compile some regexes
         self.white = re.compile(r"[\n|\s]+")
@@ -224,8 +246,9 @@ class Bstparser :
         self.token_re = re.compile(r"([^\s\"%(){}@,]+|#\d+|:=|\n|@|\"|{|}|=|,)")
 
     def next_token(self):
-        """Returns next token"""        
+        """Returns next token"""
         self.token = self._next_token()
+        print self.token
 
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
@@ -319,37 +342,40 @@ class Bstparser :
 
     def function(self):
         global FUNCTIONS
+        global STACK
 
         self.next_token()
         if self.token == '{' :
             self.next_token()
 
-            # Get name
-            print "FUNCTION", self.token
+            # Get name            
             name = self.token
             self.next_token()           
             
             if self.token == '}' :
                 self.next_token()
                 bracket = 0
-                if self.token == '{' :
-                    bracket += 1
+                if self.token == '{' :                    
                     self.next_token()
 
                     # NEED TO HAVE NESTED COMMANDS
                     commands = []
-                    while True:
-                        if self.token == '}' :
-                            bracket -= 1
-                            if bracket == 0 :
-                                break
-                        if self.token == '{' :
-                            bracket += 1
-                        commands.append(self.token)                     
-                        self.next_token()
 
-                    if self.token == '}' and bracket == 0:
-                        print commands
+                    while True :
+                        if self.token == '{' :
+                            res = self.command()
+                            for c in res :
+                                STACK.append(c)
+                        elif self.token == '"' :
+                            s = self.string()
+                            STACK.append( s )
+                        else :
+                            commands.append( self.token )
+                            self.next_token()
+                        if self.token == '}' :
+                            break                    
+
+                    if self.token == '}':                        
                         FUNCTIONS[ name ] = commands
                         return
                     else:
@@ -360,6 +386,38 @@ class Bstparser :
                 raise NameError("} expected 2")
         else :
             raise NameError("{ expected 1") 
+
+    def command( self, depth = 0 ) :
+        cmd = []
+        while True :
+            if self.token == '{' :
+                self.next_token()
+                res = self.command(depth+1)
+                cmd.append( res )
+            elif self.token == '"' :
+                s = self.string()
+                cmd.append( s )
+            else :
+                cmd.append( self.token )
+                self.next_token()
+            if self.token == '}' :
+                if depth > 0 :
+                    self.next_token()
+                return cmd
+
+    def string( self ) :
+        s = ''        
+        if self.token == '"' :
+            s += '"'
+            self.next_token()
+            while self.token != '"' :
+                s += self.token
+                self.next_token()
+
+            if self.token == '"' :
+                s += self.token
+                self.next_token()                
+                return s
 
     def macro(self):
         global MACROS
@@ -418,6 +476,8 @@ class Bstparser :
             raise NameError("{ expected 2")
 
     def read(self):
+        self.bib = Bibparser(self.bib_data)
+        self.bib.parse()
         pass        
 
     def reverse(self):
@@ -462,6 +522,11 @@ class Bstparser :
 def main() :    
     """Main function"""
 
+    _bst_filename = sys.argv[1]
+    _bib_filename = sys.argv[2]
+
+    print _bst_filename, _bib_filename
+
     # TODO: Probably a solution with iterations will be better
     data = ""
     for line in fileinput.input():
@@ -471,6 +536,10 @@ def main() :
     data = clear_comments(data) 
     bst = Bstparser(data)
     bst.parse()
+
+    print "------"
+    print
+    print BUFFER
     
 if __name__ == "__main__" :
     main()
