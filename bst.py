@@ -95,25 +95,49 @@ class Function :
                 'arguments' : 0,
                 'function'  : 'newline'
             },
+            'call.type$': {
+                'arguments' : 1,
+                'function' : 'call_type'
+            },
             'preamble$' : {
                 'arguments' : 0,
                 'function'  : 'preample'
+            },
+            'empty$' : {
+                'arguments' : 1,
+                'function'  : 'empty'
+            },
+            'duplicate$' : {
+                'arguments' : 1,
+                'function'  : 'duplicate'
             }
         }
 
-    def __init__(self, name, commands):
+    def __init__(self, name, commands, external_entries ):
         self.name = name
         self.commands = commands        
+        self.external_entries = external_entries
 
     def is_op( self, s ) :
         global FUNCTIONS
+
         if s in self.OPS :
             return self.OPS[s]
         if s in FUNCTIONS:
-            Function( s, FUNCTIONS[ s ] ).execute()
+            Function( s, FUNCTIONS[ s ], self.external_entries ).execute()
             return {'arguments':0,'function':'skip'}
 
         return None
+
+    def duplicate( self, a ) :
+        self.push( a )
+        self.push( a )
+
+    def empty( self, a ):
+        if a == '' :
+            self.push('1')
+        else :
+            self.push('0')
 
     def preample( self ) :
         self.push('FU')
@@ -132,29 +156,38 @@ class Function :
         self.push(b)
 
     def iff( self, b, y, n ) :      
-        if b :
-            Function( y, FUNCTIONS[ n ] ).execute()
+        if int(b) > 0 :
+            Function( y, FUNCTIONS[ y ], self.external_entries ).execute()
         else :
-            Function( y, FUNCTIONS[ n ] ).execute()
+            Function( n, FUNCTIONS[ n ], self.external_entries ).execute()
 
     def skip(self):
         pass
 
-    def execute( self ):
+    def execute( self, entry = None ):
         global STACK
-        print "EXECUTING", self.name
+        print "EXECUTING", self.name        
+
         print self.commands
-        for command in self.commands :            
+        for command in self.commands :
+
+            print 'yoyoyo', command, self.external_entries
+            if command in self.external_entries :
+                print 'poutsa', command
+
+
             try :
                 res = self.is_op( command )
             except :
                 res = None
+
             if res <> None :
                 
                 # gather all arguments
                 # and call function
                 args = []
                 # print "STACK", STACK
+                
                 for i in range(res['arguments']) :
                     args.append(self.pop())
                 f = getattr(self, res['function'])
@@ -192,8 +225,8 @@ class Function :
         self.push( a == b and 1 or 0 )
 
     def concat( self, a, b ):
-        print "concat(%s,%s)" % (a,b)
-        self.push( a+b )
+        print "concat(%s,%s)" % (a,b)        
+        self.push( str(a)+str(b) )
 
     def isub( self, a, b ):
         print "%s - %s" % (a,b)
@@ -331,6 +364,11 @@ class Bstparser :
                                 self.next_token()                            
 
                             if self.token == '}' :
+
+                                self.external_entries = external_entries
+                                self.internal_ints = internal_ints
+                                self.internal_str = internal_str     
+
                                 return
                             else :
                                 raise NameError("} expected 6") 
@@ -343,11 +381,7 @@ class Bstparser :
             else :
                 raise NameError("} expected 2")
         else :
-            raise NameError("{ expected 1")
-
-        self.external_entries = external_entries
-        self.internal_ints = internal_ints
-        self.internal_str = internal_str            
+            raise NameError("{ expected 1")        
 
     def integers(self):
         integer_list = []
@@ -493,7 +527,7 @@ class Bstparser :
             # Get name
             print "EXECUTE", self.token
             f = self.token  
-            Function( f, FUNCTIONS[ f ] ).execute()     
+            Function( f, FUNCTIONS[ f ], self.external_entries ).execute()     
 
             self.eat_except('}') ###
         else :
@@ -530,7 +564,10 @@ class Bstparser :
             for entry in self.bib.records:
                 # Execute func for 
                 # the specific entity
-                print entry, self.bib.records[entry]['record_type']
+                if func == 'call.type$' :
+                    func = self.bib.records[entry]['record_type']
+                
+                Function( func, FUNCTIONS[ func ], self.external_entries ).execute( self.bib.records[entry] )
 
             self.eat_except('}') ###
         else :
