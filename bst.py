@@ -24,6 +24,7 @@ import fileinput
 import re
 import json
 import sys
+import bib
 
 def clear_comments(data):
     """Return the bibtex content without comments"""
@@ -292,23 +293,42 @@ class Bstparser :
     def entry(self):
         self.next_token()
         if self.token == '{' :
+
             self.next_token()
 
-            self.eat_except('}') ###
+            # get external entries
+            external_entries = {}
+            while True:                
+                if self.token == '}' :
+                    break;
+                external_entries[ self.token ] = True
+                self.next_token()            
             
             if self.token == '}' :
                 self.next_token()
                 if self.token == '{' :
                     self.next_token()
 
-                    self.eat_except('}') ###
+                    # get internal integers
+                    internal_ints = {}
+                    while True:                
+                        if self.token == '}' :
+                            break;
+                        internal_ints[ self.token ] = True
+                        self.next_token()                    
                     
                     if self.token == '}' :
                         self.next_token()
                         if self.token == '{' :
                             self.next_token()
 
-                            self.eat_except('}') ###
+                            # get internal string
+                            internal_str = {}
+                            while True:                
+                                if self.token == '}' :
+                                    break;
+                                internal_str[ self.token ] = True
+                                self.next_token()                            
 
                             if self.token == '}' :
                                 return
@@ -323,7 +343,11 @@ class Bstparser :
             else :
                 raise NameError("} expected 2")
         else :
-            raise NameError("{ expected 1")     
+            raise NameError("{ expected 1")
+
+        self.external_entries = external_entries
+        self.internal_ints = internal_ints
+        self.internal_str = internal_str            
 
     def integers(self):
         integer_list = []
@@ -476,7 +500,7 @@ class Bstparser :
             raise NameError("{ expected 2")
 
     def read(self):
-        self.bib = Bibparser(self.bib_data)
+        self.bib = bib.Bibparser(self.bib_data)
         self.bib.parse()
         pass        
 
@@ -499,7 +523,15 @@ class Bstparser :
     def iterate(self):
         self.next_token()
         if self.token == '{' :
-            self.next_token()           
+            self.next_token()
+
+            func = self.token            
+
+            for entry in self.bib.records:
+                # Execute func for 
+                # the specific entity
+                print entry, self.bib.records[entry]['record_type']
+
             self.eat_except('}') ###
         else :
             raise NameError("{ expected 2")
@@ -525,16 +557,16 @@ def main() :
     _bst_filename = sys.argv[1]
     _bib_filename = sys.argv[2]
 
-    print _bst_filename, _bib_filename
+    with open( _bst_filename, 'r' ) as f :
+        bst_file_data = f.read()     
 
-    # TODO: Probably a solution with iterations will be better
-    data = ""
-    for line in fileinput.input():
-        line = line.rstrip()        
-        data += line + "\n"
+    with open( _bib_filename, 'r' ) as f :
+        bib_file_data = f.read()     
+    
+    bst_file_data = clear_comments(bst_file_data) 
+    bib_file_data = clear_comments(bib_file_data) 
 
-    data = clear_comments(data) 
-    bst = Bstparser(data)
+    bst = Bstparser(bst_file_data, bib_file_data)
     bst.parse()
 
     print "------"
