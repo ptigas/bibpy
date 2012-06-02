@@ -110,6 +110,10 @@ class Function :
             'duplicate$' : {
                 'arguments' : 1,
                 'function'  : 'duplicate'
+            },
+            'cite$' : {
+                'arguments' : 0,
+                'function'  : 'cite'
             }
         }
 
@@ -122,12 +126,18 @@ class Function :
         global FUNCTIONS
 
         if s in self.OPS :
+            print s, 'is op. executing.'
             return self.OPS[s]
         if s in FUNCTIONS:
+            print s, 'is function. executing.'
             Function( s, FUNCTIONS[ s ], self.external_entries ).execute()
             return {'arguments':0,'function':'skip'}
 
         return None
+
+    def cite( self ):
+        # should add the cite key
+        self.push('ptiga123')
 
     def duplicate( self, a ) :
         self.push( a )
@@ -166,16 +176,13 @@ class Function :
 
     def execute( self, entry = None ):
         global STACK
-        print "EXECUTING", self.name        
+        print "Executing commands", self.name        
 
-        print self.commands
+        print '> ', self.commands
         for command in self.commands :
-
-            print 'yoyoyo', command, self.external_entries
+            print 'Executing command:', command #, self.external_entries
             if command in self.external_entries :
                 print 'poutsa', command
-
-
             try :
                 res = self.is_op( command )
             except :
@@ -277,7 +284,10 @@ class Bstparser :
         # compile some regexes
         self.white = re.compile(r"[\n|\s]+")
         self.nl = re.compile(r"[\n]")
-        self.token_re = re.compile(r"([^\s\"%(){}@,]+|#\d+|:=|\n|@|\"|{|}|=|,)")
+        self.token_re = re.compile(r"([^\s\"%(){}@,]+|#\d+|:=|\n|@|\".*\"|{|}|=|,)")
+
+        # integer variables list
+        self.integer_list = []
 
     def next_token(self):
         """Returns next token"""
@@ -384,7 +394,7 @@ class Bstparser :
             raise NameError("{ expected 1")        
 
     def integers(self):
-        integer_list = []
+        self.integer_list = []
         self.next_token()
         if self.token == '{' :
             self.next_token()
@@ -392,9 +402,9 @@ class Bstparser :
             while True :
                 if self.token == '}' :
                     break
-                integer_list.append(self.token)
+                self.integer_list.append(self.token)
                 self.next_token()
-            print "INTEGERS", integer_list
+            print "INTEGERS", self.integer_list
         else :
             raise NameError("{ expected 2")
 
@@ -423,10 +433,7 @@ class Bstparser :
                         if self.token == '{' :
                             res = self.command()
                             for c in res :
-                                STACK.append(c)
-                        elif self.token == '"' :
-                            s = self.string()
-                            STACK.append( s )
+                                STACK.append(c)                        
                         else :
                             commands.append( self.token )
                             self.next_token()
@@ -565,6 +572,7 @@ class Bstparser :
                 # Execute func for 
                 # the specific entity
                 if func == 'call.type$' :
+                    print "\t call.type$", entry
                     func = self.bib.records[entry]['record_type']
                 
                 Function( func, FUNCTIONS[ func ], self.external_entries ).execute( self.bib.records[entry] )
