@@ -284,7 +284,7 @@ class Bstparser :
         # compile some regexes
         self.white = re.compile(r"[\n|\s]+")
         self.nl = re.compile(r"[\n]")
-        self.token_re = re.compile(r"([^\s\"%(){}@,]+|#\d+|:=|\n|@|\".*\"|{|}|=|,)")
+        self.token_re = re.compile(r"([^\s\"%(){}@,]+|#\d+|:=|\n|@|\"[^\"]*\"|{|}|=|,)")
 
         # integer variables list
         self.integer_list = []
@@ -292,7 +292,7 @@ class Bstparser :
     def next_token(self):
         """Returns next token"""
         self.token = self._next_token()
-        print self.token
+        #print self.token
 
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
@@ -492,7 +492,7 @@ class Bstparser :
             self.next_token()
 
             # Get name
-            print "MACRO", self.token
+            #print "MACRO", self.token
             name = self.token
             self.next_token()           
             
@@ -572,7 +572,7 @@ class Bstparser :
                 # Execute func for 
                 # the specific entity
                 if func == 'call.type$' :
-                    print "\t call.type$", entry
+                    #print "\t call.type$", entry
                     func = self.bib.records[entry]['record_type']
                 
                 Function( func, FUNCTIONS[ func ], self.external_entries ).execute( self.bib.records[entry] )
@@ -592,7 +592,7 @@ class Bstparser :
                     break
                 integer_list.append(self.token)
                 self.next_token()
-            print "STRINGS", integer_list
+            #print "STRINGS", integer_list
         else :
             raise NameError("{ expected 2")
 
