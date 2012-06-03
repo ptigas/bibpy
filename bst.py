@@ -41,6 +41,8 @@ FUNCTIONS = {}
 
 BUFFER = ""
 
+VARIABLES = {}
+
 class Function :
     OPS = {
             ':=' : {
@@ -80,7 +82,7 @@ class Function :
                 'function'  : 'skip'
             },
             'if$' : {
-                'arguments' : 3,
+                'arguments' : 1,
                 'function'  : 'iff'
             },
             'swap$' : {
@@ -114,25 +116,41 @@ class Function :
             'cite$' : {
                 'arguments' : 0,
                 'function'  : 'cite'
+            },
+            'int.to.str$'   : {
+                'arguments' : 1,
+                'function'  : 'int2str'
             }
+
         }
 
     def __init__(self, name, commands, external_entries ):
         self.name = name
         self.commands = commands        
-        self.external_entries = external_entries
+        self.external_entries = external_entries        
+
+    def int2str( self, n ) :
+        global VARIABLES
+        n = self._lookup( n )
+        print 'int2str', n, VARIABLES
+        self.push( str(n) )
 
     def is_op( self, s ) :
         global FUNCTIONS
+        global STACK
+
+        if type(s) == type([]) :
+            return ( self.OPS[s[0]], s[1:] )
 
         if s in self.OPS :
             print s, 'is op. executing.'
             return self.OPS[s]
+
         if s in FUNCTIONS:
             print s, 'is function. executing.'
             Function( s, FUNCTIONS[ s ], self.external_entries ).execute()
             return {'arguments':0,'function':'skip'}
-
+        print "STACK: ", STACK
         return None
 
     def cite( self ):
@@ -165,23 +183,67 @@ class Function :
         self.push(a)
         self.push(b)
 
-    def iff( self, b, y, n ) :      
-        if int(b) > 0 :
-            Function( y, FUNCTIONS[ y ], self.external_entries ).execute()
+    def iff( self, b, y, n ) :
+        print FUNCTIONS
+        
+        if int(b) > 0 :            
+            #Function( 'foo', y, self.external_entries ).execute()
+            self.execute_f(n)
         else :
-            Function( n, FUNCTIONS[ n ], self.external_entries ).execute()
+            #Function( 'foo', n, self.external_entries ).execute()
+            self.execute_f(y)
+        
+        print "IF:", y, n
+
+    def execute_f( self, f ) :
+        if type(f) == type([]) :
+            Function( 'unknon', f, self.external_entries ).execute()
+        else :
+            try :
+                Function( f, FUNCTIONS[f], self.external_entries ).execute()
+            except KeyError :
+                Function( f, [f], self.external_entries ).execute()
 
     def skip(self):
         pass
 
-    def execute( self, entry = None ):
-        global STACK
-        print "Executing commands", self.name        
+    def fix_if_order( self, commands ) :
 
-        print '> ', self.commands
-        for command in self.commands :
+        commands_res = []
+
+        for i, command in enumerate(commands) :
+            commands_res.append( command )
+            if command == 'if$' :
+                
+                if type(commands[i-2]) == type([]) :
+                    f1 = self.fix_if_order(commands[i-2])
+                else :
+                    f1 = commands[i-2]
+                
+                if type(commands[i-2]) == type([]) :
+                    f2 = self.fix_if_order(commands[i-1])
+                else :
+                    f2 = commands[i-1]                    
+                
+                commands_res.pop()
+                commands_res.pop()
+                commands_res.pop()
+                commands_res += ["if$", f1, f2]
+
+        return commands_res
+
+    def execute( self, entry = None ):
+        global STACK        
+        print "Executing commands", self.name        
+        
+        commands = self.fix_if_order( self.commands )
+
+        print 'BEFOR > ', self.commands
+        print 'AFTER > ', commands
+        for command in commands :
+
             print 'Executing command:', command #, self.external_entries
-            if command in self.external_entries :
+            if type(command) != type([]) and command in self.external_entries :
                 print 'poutsa', command
             try :
                 res = self.is_op( command )
@@ -195,11 +257,19 @@ class Function :
                 args = []
                 # print "STACK", STACK
                 
-                for i in range(res['arguments']) :
-                    args.append(self.pop())
-                f = getattr(self, res['function'])
+                if type(res) == type(()) :                    
+                    f = getattr(self, res[0]['function'])                    
+                    args.append( self._lookup(self.pop()) )
+                    print res
+                    args.append(res[1][0])
+                    args.append(res[1][1])                                    
+                else :
+                    for i in range(res['arguments']) :
+                        args.append(self.pop())
+                    f = getattr(self, res['function'])                
                 if f :
                     # print "AAA", res['function']
+                    print f, args
                     f(*args)                    
 
             elif type(command) == list :
@@ -217,7 +287,12 @@ class Function :
         #print STACK
 
     def assign( self, a, b ):
-        print "%s := %s" % (a,b)
+        global VARIABLES
+        if b[0] == '#' :
+            print "%s := %s" % ( a[1:], int(b[1:]) )
+            VARIABLES[ a[1:] ] = int(b[1:])
+        else :
+            print "%s := %s" % ( a[1:], b )                
 
     def less( self, a, b ):
         print "%s < %s" % (a,b)
@@ -237,15 +312,15 @@ class Function :
 
     def isub( self, a, b ):
         print "%s - %s" % (a,b)
-        a = 0
-        b = 0
-        self.push( int(a) - int(b) )
+        a = self._lookup( a )
+        b = self._lookup( b )
+        self.push( a - b )
 
-    def iadd( self, a, b ):
+    def iadd( self, a, b ):    
+        a = self._lookup( a )
+        b = self._lookup( b )        
         print "%s + %s" % (a,b)
-        a = 0
-        b = 0
-        self.push( int(a)+int(b) )
+        self.push( a + b )
 
     def pop( self ):        
         global STACK                
@@ -253,7 +328,21 @@ class Function :
 
     def push( self, item ):
         global STACK
-        STACK.append( item )
+        if type(item) == type(1) or item.isdigit() :
+            STACK.append( "#%s" % item )
+        else :
+            STACK.append( item )
+
+    def _lookup( self, s ) :
+        global VARIABLES
+        if type(s) == type("") and s[0] == '#' :            
+            return int( s[1:] )
+        else :
+            try :
+                return VARIABLES[ s ]
+            except KeyError :
+                return s
+
 
 MACROS = {}
 
@@ -430,16 +519,21 @@ class Bstparser :
                     commands = []
 
                     while True :
+                        #print '+++++', self.token
                         if self.token == '{' :
                             res = self.command()
-                            for c in res :
-                                STACK.append(c)                        
+                            #print "AAAA", res
+                            #for c in res :
+                            #    STACK.append(c)
+                            #commands.append( res[0:] )
+                            commands += res
                         else :
                             commands.append( self.token )
                             self.next_token()
-                        if self.token == '}' :
+                        if self.token == '}' :                            
                             break                    
 
+                    #print "YO",commands
                     if self.token == '}':                        
                         FUNCTIONS[ name ] = commands
                         return
@@ -455,21 +549,20 @@ class Bstparser :
     def command( self, depth = 0 ) :
         cmd = []
         while True :
+            #print "----", self.token
+
             if self.token == '{' :
                 self.next_token()
                 res = self.command(depth+1)
                 cmd.append( res )
-            elif self.token == '"' :
-                s = self.string()
-                cmd.append( s )
+            elif self.token == '}' :
+                if depth > 0 :
+                    self.next_token()                
+                return cmd
             else :
                 cmd.append( self.token )
-                self.next_token()
-            if self.token == '}' :
-                if depth > 0 :
-                    self.next_token()
-                return cmd
-
+                self.next_token()                
+                
     def string( self ) :
         s = ''        
         if self.token == '"' :
@@ -616,6 +709,7 @@ def main() :
 
     print "------"
     print
+    print STACK
     print BUFFER
     
 if __name__ == "__main__" :
