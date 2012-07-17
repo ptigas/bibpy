@@ -140,35 +140,7 @@ class Function :
             'int.to.str$'   : {
                 'arguments' : 1,
                 'function'  : 'int2str'
-            },
-            'key'   : {
-                'arguments' : 0,
-                'function'  : 'key'
-            },
-            'volume'   : {
-                'arguments' : 0,
-                'function'  : 'volume'
-            },
-            'number'   : {
-                'arguments' : 0,
-                'function'  : 'number'
-            },
-            'month'   : {
-                'arguments' : 0,
-                'function'  : 'month'
-            },
-            'year'   : {
-                'arguments' : 0,
-                'function'  : 'year'
-            },
-            'author'   : {
-                'arguments' : 0,
-                'function'  : 'author'
-            },
-            'journal'   : {
-                'arguments' : 0,
-                'function'  : 'journal'
-            }            
+            },            
 
         }
 
@@ -189,8 +161,8 @@ class Function :
         
         if s[0] == "'" and s[1:] in FUNCTIONS :
             s = s[1:]
-            Function( s, FUNCTIONS[ s ], self.external_entries ).execute()
-            return {'arguments':0,'function':'skip'}
+            Function( s, FUNCTIONS[ s ], self.external_entries ).execute()            
+            return {'arguments':1,'function':'push'}
 
         if type(s) == type(()) :
             return ( self.OPS[s[0]], s[1:] )
@@ -266,33 +238,7 @@ class Function :
             self.push( s[:-start:-1] )
         print "STL:", STACK
 
-    def key( self ) :
-        global ENTRY
-        self.push( ENTRY['key'] )
-
-    def volume( self ):
-        global ENTRY
-        self.push( ENTRY['volume'] )
-
-    def number( self ):
-        global ENTRY
-        self.push( ENTRY['number'] )
-
-    def month( self ):
-        global ENTRY
-        self.push( ENTRY['month'] )
-
-    def year( self ):
-        global ENTRY
-        self.push( ENTRY['year'] )
-
-    def author( self ):
-        global ENTRY
-        self.push( ENTRY['year'] )
-
-    def journal( self ):
-        global ENTRY
-        self.push( ENTRY['year'] )
+   
 
     def iff( self, b, y, n ) :            
         if int(b) > 0 :            
@@ -341,7 +287,8 @@ class Function :
         return commands_res
 
     def execute( self, entry = None ):
-        global STACK        
+        global STACK
+        global ENTRY        
         print "Executing commands", self.name
 
         print "YO: ", self.commands
@@ -382,6 +329,25 @@ class Function :
                 if f :
                     print "AAA", args
                     f(*args)
+
+
+            elif command in [ 
+                    'volume', 
+                    'title', 
+                    'month', 
+                    'year', 
+                    'pages', 
+                    'edition', 
+                    'note', 
+                    'key', 
+                    'author', 
+                    'volume', 
+                    'number', 
+                    'journal' ] :
+                try :
+                    self.push( ENTRY[ command ] )
+                except KeyError :
+                    self.push('')
 
             elif type(command) == type([]) :                
                 pass
