@@ -35,6 +35,8 @@ def clear_comments(data):
     res = re.sub(r"(  )", " ", res)
     return res
 
+ENTRY = None
+
 STACK = []
 
 FUNCTIONS = {}
@@ -120,6 +122,10 @@ class Function :
             'int.to.str$'   : {
                 'arguments' : 1,
                 'function'  : 'int2str'
+            },
+            'key'   : {
+                'arguments' : 0,
+                'function'  : 'key'
             }
 
         }
@@ -127,7 +133,7 @@ class Function :
     def __init__(self, name, commands, external_entries ):
         self.name = name
         self.commands = commands        
-        self.external_entries = external_entries        
+        self.external_entries = external_entries
 
     def int2str( self, n ) :
         global VARIABLES
@@ -139,7 +145,7 @@ class Function :
         global FUNCTIONS
         global STACK
 
-        if type(s) == type([]) :
+        if type(s) == type(()) :
             return ( self.OPS[s[0]], s[1:] )
 
         if s in self.OPS :
@@ -162,10 +168,13 @@ class Function :
         self.push( a )
 
     def empty( self, a ):
+        print '++++++++++++', a, a == ''
         if a == '' :
             self.push('1')
+            print "----- 1"
         else :
             self.push('0')
+            print "----- 0"
 
     def preample( self ) :
         self.push('FU')
@@ -183,17 +192,17 @@ class Function :
         self.push(a)
         self.push(b)
 
-    def iff( self, b, y, n ) :
-        print FUNCTIONS
-        
+    def key( self ) :
+        global ENTRY
+        self.push( ENTRY['key'] )
+
+    def iff( self, b, y, n ) :            
         if int(b) > 0 :            
             #Function( 'foo', y, self.external_entries ).execute()
-            self.execute_f(n)
+            self.execute_f(y)
         else :
             #Function( 'foo', n, self.external_entries ).execute()
-            self.execute_f(y)
-        
-        print "IF:", y, n
+            self.execute_f(n)        
 
     def execute_f( self, f ) :
         if type(f) == type([]) :
@@ -213,38 +222,43 @@ class Function :
 
         for i, command in enumerate(commands) :
             commands_res.append( command )
-            if command == 'if$' :
-                
+            if command == 'if$' :                
                 if type(commands[i-2]) == type([]) :
                     f1 = self.fix_if_order(commands[i-2])
+                    print 'f1'
                 else :
                     f1 = commands[i-2]
                 
-                if type(commands[i-2]) == type([]) :
+                if type(commands[i-i]) == type([]) :
+                    print 'f2'
                     f2 = self.fix_if_order(commands[i-1])
                 else :
                     f2 = commands[i-1]                    
                 
                 commands_res.pop()
                 commands_res.pop()
-                commands_res.pop()
-                commands_res += ["if$", f1, f2]
+                commands_res.pop()                
+                commands_res.append( ("if$", f1, f2) )
 
         return commands_res
 
     def execute( self, entry = None ):
         global STACK        
-        print "Executing commands", self.name        
-        
-        commands = self.fix_if_order( self.commands )
+        print "Executing commands", self.name
 
-        print 'BEFOR > ', self.commands
-        print 'AFTER > ', commands
+        print "YO: ", self.commands
+        commands = self.fix_if_order( self.commands )
+        print "COMMANDS: ", commands
+
+        #print 'BEFOR > ', self.commands
+        print ' > ', commands
         for command in commands :
 
             print 'Executing command:', command #, self.external_entries
-            if type(command) != type([]) and command in self.external_entries :
+
+            if type(command) != type(()) and command in self.external_entries :
                 print 'poutsa', command
+
             try :
                 res = self.is_op( command )
             except :
@@ -255,12 +269,10 @@ class Function :
                 # gather all arguments
                 # and call function
                 args = []
-                # print "STACK", STACK
-                
+                # print "STACK", STACK                
                 if type(res) == type(()) :                    
                     f = getattr(self, res[0]['function'])                    
-                    args.append( self._lookup(self.pop()) )
-                    print res
+                    args.append( self._lookup(self.pop()) )                    
                     args.append(res[1][0])
                     args.append(res[1][1])                                    
                 else :
@@ -268,8 +280,7 @@ class Function :
                         args.append(self.pop())
                     f = getattr(self, res['function'])                
                 if f :
-                    # print "AAA", res['function']
-                    print f, args
+                    # print "AAA", res['function']                    
                     f(*args)                    
 
             elif type(command) == list :
@@ -307,8 +318,8 @@ class Function :
         self.push( a == b and 1 or 0 )
 
     def concat( self, a, b ):
-        print "concat(%s,%s)" % (a,b)        
-        self.push( str(a)+str(b) )
+        print "concat(%s,%s)" % (b,a)        
+        self.push( str(b)+str(a) )
 
     def isub( self, a, b ):
         print "%s - %s" % (a,b)
@@ -337,7 +348,7 @@ class Function :
         global VARIABLES
         if type(s) == type("") and s[0] == '#' :            
             return int( s[1:] )
-        else :
+        else :            
             try :
                 return VARIABLES[ s ]
             except KeyError :
@@ -358,7 +369,7 @@ class Bstparser :
             else :
                 yield i            
 
-    def __init__(self, bst_data, bib_data) :
+    def __init__(self, bst_data, bib_data) :        
         self.data = bst_data
         self.token = None
         self.token_type = None
@@ -369,6 +380,9 @@ class Bstparser :
         self.line = 1
         self.last_called_function = None
         self.bib_data = bib_data
+
+        tmp = bib.Bibparser( bib_data )
+        tmp.parse()
 
         # compile some regexes
         self.white = re.compile(r"[\n|\s]+")
@@ -381,7 +395,7 @@ class Bstparser :
     def next_token(self):
         """Returns next token"""
         self.token = self._next_token()
-        #print self.token
+        print self.token
 
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
@@ -655,6 +669,7 @@ class Bstparser :
             raise NameError("{ expected 2")
 
     def iterate(self):
+        global ENTRY
         self.next_token()
         if self.token == '{' :
             self.next_token()
@@ -662,12 +677,12 @@ class Bstparser :
             func = self.token            
 
             for entry in self.bib.records:
+                ENTRY = self.bib.records[entry] 
                 # Execute func for 
                 # the specific entity
                 if func == 'call.type$' :
                     #print "\t call.type$", entry
-                    func = self.bib.records[entry]['record_type']
-                
+                    func = self.bib.records[entry]['record_type']                
                 Function( func, FUNCTIONS[ func ], self.external_entries ).execute( self.bib.records[entry] )
 
             self.eat_except('}') ###
