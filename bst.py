@@ -35,6 +35,8 @@ def clear_comments(data):
     res = re.sub(r"(  )", " ", res)
     return res
 
+MAX_ITER = 100
+
 ENTRY = None
 
 STACK = []
@@ -83,10 +85,18 @@ class Function :
                 'arguments' : 0,
                 'function'  : 'skip'
             },
+            "global.max$" : {
+                'arguments' : 0,
+                'function'  : 'global_max'
+            },
             'if$' : {
                 'arguments' : 1,
                 'function'  : 'iff'
             },
+            'while$'   : {
+                'arguments' : 2,
+                'function'  : '_while'
+            },            
             'swap$' : {
                 'arguments' : 2,
                 'function'  : 'swap'
@@ -119,6 +129,10 @@ class Function :
                 'arguments' : 1,
                 'function'  : 'duplicate'
             },
+            'substring$' : {
+                'arguments' : 3,
+                'function'  : 'substring'
+            },
             'cite$' : {
                 'arguments' : 0,
                 'function'  : 'cite'
@@ -146,7 +160,15 @@ class Function :
             'year'   : {
                 'arguments' : 0,
                 'function'  : 'year'
-            }
+            },
+            'author'   : {
+                'arguments' : 0,
+                'function'  : 'author'
+            },
+            'journal'   : {
+                'arguments' : 0,
+                'function'  : 'journal'
+            }            
 
         }
 
@@ -197,6 +219,9 @@ class Function :
         self.push( a )
         self.push( a )
 
+    def global_max( self ) :
+        self.push( '#100' )
+
     def missing( self, a ) :
         global ENTRY
         try :
@@ -230,6 +255,17 @@ class Function :
         self.push(a)
         self.push(b)
 
+    def substring( self, ln, start, s ) :
+        global STACK
+        l = len(s)
+        ln = self._lookup(ln)
+        start = self._lookup(start)
+        if start > 0 :
+            self.push( s[start-1:min(ln+start-1,l)] )
+        else :
+            self.push( s[:-start:-1] )
+        print "STL:", STACK
+
     def key( self ) :
         global ENTRY
         self.push( ENTRY['key'] )
@@ -247,6 +283,14 @@ class Function :
         self.push( ENTRY['month'] )
 
     def year( self ):
+        global ENTRY
+        self.push( ENTRY['year'] )
+
+    def author( self ):
+        global ENTRY
+        self.push( ENTRY['year'] )
+
+    def journal( self ):
         global ENTRY
         self.push( ENTRY['year'] )
 
@@ -270,29 +314,29 @@ class Function :
     def skip(self):
         pass
 
-    def fix_if_order( self, commands ) :
+    def fix_order( self, commands, cmd ) :
 
         commands_res = []
 
-        for i, command in enumerate(commands) :
+        for i, command in enumerate(commands) :            
             commands_res.append( command )
-            if command == 'if$' :                
+            if command == cmd:
                 if type(commands[i-2]) == type([]) :
-                    f1 = self.fix_if_order(commands[i-2])
+                    f1 = self.fix_order(commands[i-2], cmd)
                     print 'f1'
                 else :
                     f1 = commands[i-2]
                 
                 if type(commands[i-i]) == type([]) :
                     print 'f2'
-                    f2 = self.fix_if_order(commands[i-1])
+                    f2 = self.fix_order(commands[i-1], cmd)
                 else :
                     f2 = commands[i-1]                    
                 
                 commands_res.pop()
                 commands_res.pop()
                 commands_res.pop()                
-                commands_res.append( ("if$", f1, f2) )
+                commands_res.append( ( cmd, f1, f2 ) )
 
         return commands_res
 
@@ -301,23 +345,21 @@ class Function :
         print "Executing commands", self.name
 
         print "YO: ", self.commands
-        commands = self.fix_if_order( self.commands )
+        commands = self.fix_order( self.commands, "if$" )
+        commands = self.fix_order( commands, "while$" )
         print "COMMANDS: ", commands
 
         #print 'BEFOR > ', self.commands
         print ' > ', commands
         for command in commands :
 
-            print 'Executing command:', command #, self.external_entries
-
-            if type(command) != type(()) and command in self.external_entries :
-                print 'poutsa', command
-
+            print 'Executing command:', command
+            
             try :
                 res = self.is_op( command )
             except :
                 res = None
-
+            
             if res <> None :
                 
                 # gather all arguments
@@ -325,36 +367,44 @@ class Function :
                 args = []
                 # print "STACK", STACK                
                 if type(res) == type(()) :                    
-                    f = getattr(self, res[0]['function'])                    
-                    args.append( self._lookup(self.pop()) )                    
+                    f = getattr(self, res[0]['function'])
+
+                    if ( res[0]['function'] == 'iff' ) :                    
+                        args.append( self._lookup(self.pop()) )
+
                     args.append(res[1][0])
                     args.append(res[1][1])                                    
                 else :
                     for i in range(res['arguments']) :
                         args.append(self.pop())
                     f = getattr(self, res['function'])                
+                
                 if f :
-                    # print "AAA", res['function']                    
-                    f(*args)                    
+                    print "AAA", args
+                    f(*args)
 
-            elif type(command) == list :
+            elif type(command) == type([]) :                
                 pass
                 #print '...', command
-                #Function( 'anon', command ).execute()
+                #Function( 'anon', command ).execute()                
+                #self.execute_f( command )
 
-            elif re.match(r".*\$$", command):
+            elif re.match(r".*\$$", command):                
                 pass
                 #print "TRALALA ", command
             
-            else :
-                STACK.append(command)
+            else :                
+                if command[0] == '"' and command[-1] == '"' :
+                    command = command[1:-1]
+                STACK.append(command)                
+        
         print "FINISHED EXECUTING %s" % self.name
         #print STACK
 
     def assign( self, a, b ):
         global VARIABLES
         print "AAAAA := ", a, b
-        if b[0] == '#' :
+        if len(b) > 0 and b[0] == '#' :
             print "%s := %s" % ( a[1:], int(b[1:]) )
             VARIABLES[ a[1:] ] = int(b[1:])
         else :
@@ -390,8 +440,11 @@ class Function :
         self.push( a + b )
 
     def pop( self ):        
-        global STACK                
-        return STACK.pop()
+        global STACK
+        try :
+            return STACK.pop()
+        except IndexError :
+            return ""
 
     def push( self, item ):
         global STACK
@@ -411,6 +464,21 @@ class Function :
             except KeyError :
                 return s
 
+    def _while( self, a, b ) :
+        global STACK
+        print "WHILE"
+        
+        i = 0        
+        while True :
+            self.execute_f(a)            
+            res = self._lookup( self.pop() )
+            if res == 0 :
+                break
+            self.execute_f(b)
+            i += 1
+
+            if i > MAX_ITER :
+                raise Exception( 'MAX_ITER' )
 
 MACROS = {}
 
@@ -754,7 +822,7 @@ class Bstparser :
 
             while True :
                 if self.token == '}' :
-                    break
+                    break                
                 integer_list.append(self.token)
                 self.next_token()
             #print "STRINGS", integer_list
