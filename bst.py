@@ -111,6 +111,10 @@ class Function :
                 'arguments' : 1,
                 'function'  : 'empty'
             },
+            'missing$' :{
+                'arguments' : 1,
+                'function'  : 'missing',
+            },
             'duplicate$' : {
                 'arguments' : 1,
                 'function'  : 'duplicate'
@@ -126,6 +130,22 @@ class Function :
             'key'   : {
                 'arguments' : 0,
                 'function'  : 'key'
+            },
+            'volume'   : {
+                'arguments' : 0,
+                'function'  : 'volume'
+            },
+            'number'   : {
+                'arguments' : 0,
+                'function'  : 'number'
+            },
+            'month'   : {
+                'arguments' : 0,
+                'function'  : 'month'
+            },
+            'year'   : {
+                'arguments' : 0,
+                'function'  : 'year'
             }
 
         }
@@ -144,6 +164,11 @@ class Function :
     def is_op( self, s ) :
         global FUNCTIONS
         global STACK
+        
+        if s[0] == "'" and s[1:] in FUNCTIONS :
+            s = s[1:]
+            Function( s, FUNCTIONS[ s ], self.external_entries ).execute()
+            return {'arguments':0,'function':'skip'}
 
         if type(s) == type(()) :
             return ( self.OPS[s[0]], s[1:] )
@@ -151,6 +176,10 @@ class Function :
         if s in self.OPS :
             print s, 'is op. executing.'
             return self.OPS[s]
+
+        if s in VARIABLES :
+            self.push( VARIABLES[s] )
+            return {'arguments':0,'function':'skip'}
 
         if s in FUNCTIONS:
             print s, 'is function. executing.'
@@ -160,12 +189,21 @@ class Function :
         return None
 
     def cite( self ):
+        global ENTRY
         # should add the cite key
-        self.push('ptiga123')
+        self.push( ENTRY['key'] )
 
     def duplicate( self, a ) :
         self.push( a )
         self.push( a )
+
+    def missing( self, a ) :
+        global ENTRY
+        try :
+            ENTRY[a]
+            self.push('0')
+        except KeyError :
+            self.push('1')            
 
     def empty( self, a ):
         print '++++++++++++', a, a == ''
@@ -195,6 +233,22 @@ class Function :
     def key( self ) :
         global ENTRY
         self.push( ENTRY['key'] )
+
+    def volume( self ):
+        global ENTRY
+        self.push( ENTRY['volume'] )
+
+    def number( self ):
+        global ENTRY
+        self.push( ENTRY['number'] )
+
+    def month( self ):
+        global ENTRY
+        self.push( ENTRY['month'] )
+
+    def year( self ):
+        global ENTRY
+        self.push( ENTRY['year'] )
 
     def iff( self, b, y, n ) :            
         if int(b) > 0 :            
@@ -299,11 +353,13 @@ class Function :
 
     def assign( self, a, b ):
         global VARIABLES
+        print "AAAAA := ", a, b
         if b[0] == '#' :
             print "%s := %s" % ( a[1:], int(b[1:]) )
             VARIABLES[ a[1:] ] = int(b[1:])
         else :
-            print "%s := %s" % ( a[1:], b )                
+            print "%s := %s" % ( a[1:], b )
+            VARIABLES[ a[1:] ] = b
 
     def less( self, a, b ):
         print "%s < %s" % (a,b)
@@ -346,9 +402,10 @@ class Function :
 
     def _lookup( self, s ) :
         global VARIABLES
+
         if type(s) == type("") and s[0] == '#' :            
             return int( s[1:] )
-        else :            
+        else :
             try :
                 return VARIABLES[ s ]
             except KeyError :
