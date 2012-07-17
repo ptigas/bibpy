@@ -140,7 +140,19 @@ class Function :
             'int.to.str$'   : {
                 'arguments' : 1,
                 'function'  : 'int2str'
-            },            
+            },
+            'width$'        : {
+                'arguments' : 0,
+                'function'  : 'width'
+            },
+            'num.names$'    : {
+                'arguments' : 1,
+                'function'  : 'num_names'
+            },
+            'format.name$'  : {
+                'arguments' : 3,
+                'function'  : 'format_names'
+            }
 
         }
 
@@ -182,6 +194,10 @@ class Function :
         print "STACK: ", STACK
         return None
 
+    def format_names( self, s2, i, s1 ) :        
+        name = s1.split(' and ')[ self._lookup(i)-1 ]
+        self.push( name )
+
     def cite( self ):
         global ENTRY
         # should add the cite key
@@ -211,6 +227,12 @@ class Function :
             self.push('0')
             print "----- 0"
 
+    def num_names( self, s ) :
+        self.push( s.count(' and ') + 1 )
+
+    def width( self ) :
+        self.push('#100')
+
     def preample( self ) :
         self.push('FU')
 
@@ -237,8 +259,6 @@ class Function :
         else :
             self.push( s[:-start:-1] )
         print "STL:", STACK
-
-   
 
     def iff( self, b, y, n ) :            
         if int(b) > 0 :            
@@ -362,7 +382,8 @@ class Function :
             else :                
                 if command[0] == '"' and command[-1] == '"' :
                     command = command[1:-1]
-                STACK.append(command)                
+                #STACK.append(command)
+                self.push( command )
         
         print "FINISHED EXECUTING %s" % self.name
         #print STACK
@@ -390,6 +411,15 @@ class Function :
         self.push( a == b and 1 or 0 )
 
     def concat( self, a, b ):
+        global VARIABLES
+        try :
+            a = VARIABLES[a[1:]]
+        except :
+            pass
+        try :
+            b = VARIABLES[b[1:]]
+        except :
+            pass
         print "concat(%s,%s)" % (b,a)        
         self.push( str(b)+str(a) )
 
@@ -397,7 +427,7 @@ class Function :
         print "%s - %s" % (a,b)
         a = self._lookup( a )
         b = self._lookup( b )
-        self.push( a - b )
+        self.push( b - a )
 
     def iadd( self, a, b ):    
         a = self._lookup( a )
@@ -408,16 +438,19 @@ class Function :
     def pop( self ):        
         global STACK
         try :
-            return STACK.pop()
+            res = STACK.pop()
         except IndexError :
-            return ""
+            res = ""
+        print "poping: ", res
+        return res
 
     def push( self, item ):
         global STACK
         if type(item) == type(1) or item.isdigit() :
-            STACK.append( "#%s" % item )
+            STACK.append( "#%s" % item )            
         else :
             STACK.append( item )
+        print "pushing: ", STACK[-1]
 
     def _lookup( self, s ) :
         global VARIABLES
@@ -485,8 +518,7 @@ class Bstparser :
 
     def next_token(self):
         """Returns next token"""
-        self.token = self._next_token()
-        print self.token
+        self.token = self._next_token()        
 
     def parse(self) :
         """Parses self.data and stores the parsed bibtex to self.rec"""
