@@ -30,7 +30,6 @@ def clear_comments(data):
     res = re.sub(r"(comment [^\n]*\n)", '', res)
     return res
 
-last_called_function = None
 def log( f ):    
     return f
 
@@ -57,7 +56,6 @@ class Bibparser() :
         self.mode = None
         self.records = {}        
         self.line = 1
-        self.last_called_function = None
 
         # compile some regexes
         self.white = re.compile(r"[\n|\s]+")
@@ -207,12 +205,15 @@ class Bibparser() :
     @log
     def record(self) : 
         """Record""" 
-        if self.token not in ['comment', 'string', 'preample'] :          
-            self.next_token()
+        if self.token not in ['comment', 'string', 'preamble'] :          
+            record_type = self.token
+            self.next_token()            
             if self.token == '{' :
                 self.next_token()
                 key = self.key()
                 self.records[ key ] = {}
+                self.records[ key ]['record_type'] = record_type
+                self.records[ key ]['key'] = key
                 if self.token == ',' :              
                     while True:
                         self.next_token()
