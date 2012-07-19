@@ -181,6 +181,32 @@ class TestStringOp(unittest.TestCase):
 		b.parse()	
 		self.assertEqual( b.pop(), 'asdf!' )
 
+	def testQuote( self ) :
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { quote$ }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), '"' )
+
+class TestIfWhile(unittest.TestCase) :
+	def testWhile( self ) :
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { 
+			#10 't :=
+			#0 'i :=
+			{ t #1 - 't := t }
+			{
+			i #1 + 'i :=
+			}
+			while$
+			i
+		}"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), '#9' )
+
 class TestNumOp(unittest.TestCase):
 	def testString(self):
 		global bib_data		
