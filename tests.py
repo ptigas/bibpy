@@ -129,7 +129,6 @@ class TestStack(unittest.TestCase):
 		self.assertEqual( b.pop(), '' )
 
 class TestStringOp(unittest.TestCase):
-
 	def testConcat(self) :		
 		bst.STACK = [] # empty stack
 		f = """FUNCTION {test} { "abcd" "efg" * }"""
@@ -154,7 +153,6 @@ class TestStringOp(unittest.TestCase):
 		self.assertEqual( b.pop(), '' )
 
 class TestNumOp(unittest.TestCase):
-
 	def testString(self):
 		global bib_data		
 		f = """FUNCTION {test} { "asdf" }"""
@@ -239,8 +237,6 @@ class TestNumOp(unittest.TestCase):
 		bst_data = prepare( f, 'test' )
 		bst.Bstparser( bst_data, bib_data ).parse()
 		self.assertEqual( bst.STACK[-1], '#1' )
-
-
 
 if __name__ == '__main__':
     unittest.main()
