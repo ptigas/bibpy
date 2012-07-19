@@ -152,6 +152,35 @@ class TestStringOp(unittest.TestCase):
 		b.parse()	
 		self.assertEqual( b.pop(), '' )
 
+	def testAddPeriod(self) :		
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "asdf" add.period$ }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), 'asdf.' )
+
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "asd}}" add.period$ }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), 'asd.}}' )
+
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "}}}" add.period$ }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), '}}}' )
+
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "asdf!" add.period$ }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), 'asdf!' )
+
 class TestNumOp(unittest.TestCase):
 	def testString(self):
 		global bib_data		
