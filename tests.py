@@ -104,24 +104,143 @@ def prepare( func, name ) :
 		""" % (func, name) 
 	return data
 
+class TestStack(unittest.TestCase):
+	def testEmptyStack(self) :		
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} {}"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )		
+		self.assertEqual( b.pop(), '' )
+
+	def testPushPop(self) :		
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} {}"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )	
+		b.push('#1')
+		b.push('#2')			
+		self.assertEqual( b.pop(), '#2' )
+
+		b.push('adsf')
+		b.push('a2323')			
+		self.assertEqual( b.pop(), 'a2323' )
+
+		b.push('')
+		self.assertEqual( b.pop(), '' )
+
+class TestStringOp(unittest.TestCase):
+
+	def testConcat(self) :		
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "abcd" "efg" * }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), 'abcdefg' )
+
+	def testEmptyConcat(self) :		
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} { "" "" * }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), '' )
+
+		bst.STACK = [] # empty stack
+		f = """FUNCTION {test} {  * }"""
+		bst_data = prepare( f, 'test' )
+		b = bst.Bstparser( bst_data, bib_data )
+		b.parse()	
+		self.assertEqual( b.pop(), '' )
+
 class TestNumOp(unittest.TestCase):
 
-	def testAddition(self):
-		global bib_data
-		bst.STACK = ""
-
-		f = """
-		FUNCTION {test}
-		{
-		"asdf"
-		}
-		"""
-
+	def testString(self):
+		global bib_data		
+		f = """FUNCTION {test} { "asdf" }"""
 		bst_data = prepare( f, 'test' )
-
 		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], 'asdf' )
 
-		#self.assertEqual( bst.STACK[-1], 'asdf' )
+	def testNumber(self):
+		global bib_data		
+		f = """FUNCTION {test} { "#1" }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#1' )
+
+	def testAddition(self):
+		global bib_data		
+		f = """FUNCTION {test} { #10 #123 + }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#133' )
+
+		f = """FUNCTION {test} { #10 #-100 + }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#-90' )
+
+	def testSubstraction(self):
+		f = """FUNCTION {test} { #100 #10 - }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#90' )
+
+	def testMore(self):
+		f = """FUNCTION {test} { #1 #2 > }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+		f = """FUNCTION {test} { #2 #1 > }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#1' )
+
+		f = """FUNCTION {test} { #1 #1 > }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+	def testLess(self):
+		f = """FUNCTION {test} { #1 #2 < }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#1' )
+
+		f = """FUNCTION {test} { #2 #1 < }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+		f = """FUNCTION {test} { #1 #1 < }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+	def testEquals(self):
+		f = """FUNCTION {test} { #100 #100 = }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#1' )
+
+		f = """FUNCTION {test} { #100 #90 = }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+		f = """FUNCTION {test} { "asd" #90 = }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#0' )
+
+		f = """FUNCTION {test} { "asd" "asd" = }"""
+		bst_data = prepare( f, 'test' )
+		bst.Bstparser( bst_data, bib_data ).parse()
+		self.assertEqual( bst.STACK[-1], '#1' )
+
+
 
 if __name__ == '__main__':
     unittest.main()
