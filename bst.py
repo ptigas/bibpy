@@ -117,6 +117,10 @@ class Function :
                 'arguments' : 0,
                 'function'  : 'preample'
             },
+            'add.period$' : {
+                'arguments' : 1,
+                'function'  : 'add_period'
+            },
             'empty$' : {
                 'arguments' : 1,
                 'function'  : 'empty'
@@ -209,6 +213,19 @@ class Function :
 
     def global_max( self ) :
         self.push( '#100' )
+
+    def add_period( self, a ):
+        i = len(a) - 1        
+        while i >= 0 :
+            print '-', a[i]
+            if a[i] != '}' :
+                break
+            i -= 1
+
+        if a[i] not in ['.','!','?','}'] :
+            self.push( a[:i+1] + '.' + a[i+1:] )
+        else :
+            self.push( a )
 
     def missing( self, a ) :
         global ENTRY
@@ -558,6 +575,23 @@ class Bstparser :
                 break;
             #print self.token
             self.next_token()
+
+    def push( self, item ):
+        global STACK
+        if type(item) == type(1) or item.isdigit() :
+            STACK.append( "#%s" % item )            
+        else :
+            STACK.append( item )
+        print "pushing: ", STACK[-1]
+
+    def pop( self ):        
+        global STACK
+        try :
+            res = STACK.pop()
+        except IndexError :
+            res = ""
+        print "poping: ", res
+        return res
 
     def entry(self):
         self.next_token()
