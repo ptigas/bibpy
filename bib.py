@@ -221,6 +221,9 @@ class Bibparser() :
                         if field :
                             k = field[0]
                             val = field[1]
+
+                            if k == 'author' :
+                                val = self.parse_authors(val)
                             self.records[ key ][k] = val
                         if self.token != ',' :                      
                             break               
@@ -232,6 +235,16 @@ class Bibparser() :
                             pass
                         else :                            
                             raise NameError("@ missing")
+
+    def parse_authors( self, authors ) :
+        res = []        
+        authors = authors.split('and')
+        for author in authors :
+            _author = author.split(',')
+            family = _author[0].strip().rstrip()
+            given = _author[1].strip().rstrip()
+            res.append( {'family':family, 'given':given})
+        return res
     
     def json(self) :
         """Returns json formated records"""
