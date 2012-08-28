@@ -212,8 +212,8 @@ class Bibparser() :
                 self.next_token()
                 key = self.key()
                 self.records[ key ] = {}
-                self.records[ key ]['record_type'] = record_type
-                self.records[ key ]['key'] = key
+                self.records[ key ]['type'] = record_type
+                self.records[ key ]['id'] = key
                 if self.token == ',' :              
                     while True:
                         self.next_token()
@@ -224,6 +224,18 @@ class Bibparser() :
 
                             if k == 'author' :
                                 val = self.parse_authors(val)
+
+                            if k == 'year' :
+                                val = {'literal':val}
+                                k = 'issued'
+
+                            if k == 'pages' :
+                                val = val.replace('--', '-')
+                                k = 'page'
+
+                            if k == 'title' :
+                                val = val[2:-2] # remove '{...}'
+
                             self.records[ key ][k] = val
                         if self.token != ',' :                      
                             break               
@@ -242,14 +254,35 @@ class Bibparser() :
         for author in authors :
             _author = author.split(',')
             family = _author[0].strip().rstrip()
-            given = _author[1].strip().rstrip()
-            res.append( {'family':family, 'given':given})
+            rec = {'family':family}
+            try :
+                given = _author[1].strip().rstrip()
+                rec['given'] = given
+            except IndexError:
+                pass
+            res.append( rec )
         return res
     
     def json(self) :
         """Returns json formated records"""
-        return json.dumps(self.records)
+        return json.dumps({'items':self.records.values()})
 
+def post_request( j ) :
+    import urllib
+    import urllib2
+    import json
+    url = 'http://127.0.0.1:8085/\?bibliography\=1\&citations\=1\&linkwrap\=1\&responseformat\=json\&showoutput\=1'
+    values = j    
+    req = urllib2.Request(url, values)
+    response = urllib2.urlopen(req)
+    the_page = response.read()
+    data=json.loads(the_page)
+
+    for i in xrange(len(data['bibliography'][1])) :
+        print data['bibliography'][0]['entry_ids'][i]
+        print data['bibliography'][1][i]
+        print
+    
 def main() :
     """Main function"""
 
@@ -264,7 +297,9 @@ def main() :
     print 'cleared...'
     bib = Bibparser(data)
     bib.parse()
-    print bib.json()
+    data = bib.json()
+    post_request( data )
+    #print data
     print 'done...'    
     
 if __name__ == "__main__" :
