@@ -234,7 +234,7 @@ class Bibparser() :
                                 k = 'page'
 
                             if k == 'title' :
-                                val = val[2:-2] # remove '{...}'
+                                val = re.sub('[{}]', '', val).strip()
 
                             self.records[ key ][k] = val
                         if self.token != ',' :                      
