@@ -23,6 +23,7 @@ THE SOFTWARE.
 import fileinput
 import re
 import json
+from pprint import pprint
 
 def clear_comments(data):
     """Return the bibtex content without comments"""
@@ -234,8 +235,14 @@ class Bibparser() :
                                 k = 'page'
 
                             if k == 'title' :
-                                val = re.sub('[{}]', '', val).strip()
-
+                                #   Preserve capitalization, as described in http://tex.stackexchange.com/questions/7288/preserving-capitalization-in-bibtex-titles
+                                #   This will likely choke on nested curly-brackets, but that doesn't seem like an ordinary practice.
+                                def capitalize(s):
+                                    return s.group(1) + s.group(2).upper()
+                                while val.find('{') > -1:
+                                    caps = (val.find('{'), val.find('}'))
+                                    val = val.replace(val[caps[0]:caps[1]+1], re.sub("(^|\s)(\S)", capitalize, val[caps[0]+1:caps[1]]).strip())
+                        
                             self.records[ key ][k] = val
                         if self.token != ',' :                      
                             break               
@@ -289,7 +296,7 @@ def main() :
     # TODO: Probably a solution with iterations will be better
     data = ""
     for line in fileinput.input():
-        line = line.rstrip()        
+        line = line.rstrip()
         data += line + "\n"
 
     print 'loaded...'
@@ -300,7 +307,7 @@ def main() :
     data = bib.json()
     post_request( data )
     #print data
-    print 'done...'    
+    print 'done...'
     
 if __name__ == "__main__" :
     main()
