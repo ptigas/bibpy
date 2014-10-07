@@ -9,11 +9,11 @@ Bibpy is a (yet another) BibTex file parser in python.
 
 What's  different ? 
 ---
-It does not depend on libraries like pyparser etc. It's small and fast. Also, *sometimes* it recovers from common errors.
+It doesn't depend on libraries like pyparser etc. It's small and fast. Also, *sometimes* it recovers from common errors.
 
 What grammar is parsing ?
 ---
-The BNF it parse is based on http://tex.stackexchange.com/questions/16490/the-gold-standard-in-bibtex-databases/16492#16492
+The BNF it parses is based on http://tex.stackexchange.com/questions/16490/the-gold-standard-in-bibtex-databases/16492#16492
 
 ```
 A rough grammar (case-insensitive):
@@ -34,11 +34,6 @@ A rough grammar (case-insensitive):
        |   '"' ([^'"']|\\'"')* '"'
        |   '{' .* '}'          -- (balanced)
 ```
-
-TODO
----
-This libraries is part of a citation sharing service, stay tunned.
-
 
 License
 ---
