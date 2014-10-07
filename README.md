@@ -1,6 +1,8 @@
 Bibpy
 ===
 
+[![Build Status](https://travis-ci.org/ptigas/bibpy.svg?branch=master)](https://travis-ci.org/ptigas/bibpy)
+
 About
 ---
 Bibpy is a (yet another) BibTex file parser in python. 
