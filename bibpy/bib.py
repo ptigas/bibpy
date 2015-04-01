@@ -31,9 +31,6 @@ def clear_comments(data):
     res = re.sub(r"(comment [^\n]*\n)", '', res)
     return res
 
-def log( f ):    
-    return f
-
 class Parser() :
     """Main class for Bibtex parsing"""
 
@@ -78,14 +75,12 @@ class Parser() :
         self.token = self._next_token()
         #print self.line, self.token
     
-    @log
     def database(self) :
         """Database"""
         if self.token == '@' :            
             self.next_token()            
             self.entry()
     
-    @log
     def entry(self) :  
         """Entry"""     
         if self.token.lower() == 'string' :
@@ -97,7 +92,6 @@ class Parser() :
             self.record()
             self.mode = None
 
-    @log
     def string(self) :   
         """String"""   
         if self.token.lower() == "string" :
@@ -110,7 +104,6 @@ class Parser() :
                 else :                      
                     raise NameError("} missing")
     
-    @log
     def field(self) :
         """Field"""
         name = self.name()
@@ -121,7 +114,6 @@ class Parser() :
                 self.hashtable[name] = value
             return (name, value)            
     
-    @log
     def value(self) :
         """Value"""
         value = ""
@@ -189,21 +181,18 @@ class Parser() :
         else :
             return s
     
-    @log
     def name(self) :
         """Returns parsed Name"""
         name = self.token       
         self.next_token()
         return name
 
-    @log
     def key(self) : 
         """Returns parsed Key"""    
         key = self.token
         self.next_token()
         return key
 
-    @log
     def record(self) : 
         """Record""" 
         if self.token not in ['comment', 'string', 'preamble'] :          
